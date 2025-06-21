@@ -166,9 +166,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-dev, deploy-uat, deploy-prod-Azure]
     if: |
-      needs.deploy-dev.result == 'success' ||
-      needs.deploy-uat.result == 'success' ||
-      needs.deploy-prod-Azure.result == 'success'
+      success() && (
+        needs.deploy-dev.result == 'success' ||
+        needs.deploy-uat.result == 'success' ||
+        needs.deploy-prod-Azure.result == 'success')
     steps:
       - run: echo "Deploy da branch ${{ github.ref_name }} foi bem-sucedido."
 

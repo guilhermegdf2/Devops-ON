@@ -128,34 +128,10 @@ jobs:
         shell: bash
         run: |
           echo "Deploy DEV"
-          
-  SmoketestDev:
-    runs-on: ubuntu-latest
-    needs: deploy-dev
-    
-    if: github.ref == 'refs/heads/develop'
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy 
-        shell: bash
-        run: |
-          sh 'src/main/scripts/smoketest.sh'
-          
-  testeIntegrados:
-    runs-on: ubuntu-latest
-    needs: SmoketestDev
-    
-    if: github.ref == 'refs/heads/develop'
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy 
-        shell: bash
-        run: |
-          sh 'src/main/scripts/testeIntegrado.sh'
   
   deploy-uat:
     runs-on: ubuntu-latest
-    needs: testeIntegrados
+    needs: build
     if: github.ref == 'refs/heads/uat'
     environment:
       name: uat
@@ -165,9 +141,9 @@ jobs:
         run: |
           echo "Deploy UAT"
              
-  deploy-Prod-Azure:
+  deploy-prod-Azure:
     needs: build
-    name: deploy-Prod-Azure
+    name: deploy-prod-Azure
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'    
     environment:
@@ -188,9 +164,13 @@ jobs:
 
   Smoketest:
     runs-on: ubuntu-latest
-    needs: deploy-Prod-Azure
+    needs: [deploy-dev, deploy-uat, deploy-prod-Azure]
     
-    if: github.ref == 'refs/heads/main'
+    if: |
+      needs.deploy-dev.result == 'success' ||
+      needs.deploy-uat.result == 'success' ||
+      needs.deploy-rod-Azure.result == 'success'
+
     steps:
       - uses: actions/checkout@v3
       - name: Deploy 
@@ -202,7 +182,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: Smoketest
     
-    if: github.ref == 'refs/heads/main'
+    if: |
+      needs.deploy-dev.result == 'success' ||
+      needs.deploy-uat.result == 'success' ||
+      needs.deploy-rod-Azure.result == 'success'
+
     steps:
       - uses: actions/checkout@v3
       - name: Deploy 

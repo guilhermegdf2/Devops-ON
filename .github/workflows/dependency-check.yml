@@ -21,10 +21,30 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Run OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
+      - name: Confirm Java setup
+        run: |
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
+
+      - name: Download Dependency-Check CLI
+        run: |
+          curl -L -o dependency-check.zip https://github.com/jeremylong/DependencyCheck/releases/download/v9.0.10/dependency-check-9.0.10-release.zip
+          unzip -q dependency-check.zip -d dependency-check
+          chmod +x dependency-check/bin/dependency-check.sh
+
+      - name: Run OWASP Dependency-Check
+        run: |
+          ./dependency-check/bin/dependency-check.sh \
+            --project "Devops-FIAP-RM358736" \
+            --scan . \
+            --out reports \
+            --format HTML \
+            --failOnCVSS 7
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME }}
+
+      - name: Upload OWASP Report
+        uses: actions/upload-artifact@v4
         with:
-          project: 'Meu-Projeto'
-          path: '.'            # Caminho do seu projeto
-          format: 'HTML'       # ou 'ALL' para HTML, JSON, XML
-          out: 'reports'       # Pasta onde os relatórios vão ficar
+          name: owasp-dependency-check-report
+          path: reports/

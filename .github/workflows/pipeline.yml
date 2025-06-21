@@ -59,6 +59,29 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_AUTOGLASS }}
       run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.qualitygate.wait=true -Dsonar.projectKey=guilhermegdf2_Devops-ON
 
+  dependency-check:
+    runs-on: ubuntu-latest
+    needs: unit-test
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js (necessário para Snyk CLI)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Run Snyk Vulnerability Scan
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk test --severity-threshold=high
+
+
   build:
     runs-on: ubuntu-latest
     steps:

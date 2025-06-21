@@ -171,12 +171,13 @@ jobs:
         shell: bash
         run: |
           echo "Branch atual: ${{ github.ref_name }}"
+          echo "${{ needs.deploy-prod.result }}"
 
           if [[ "${{ needs.deploy-dev.result }}" == "success" ]]; then
             echo "Deploy DEV executado."
           elif [[ "${{ needs.deploy-uat.result }}" == "success" ]]; then
             echo "Deploy UAT executado."
-          elif [[ "${{ needs.deploy-prod-Azure.result }}" == "success" ]]; then
+          elif [[ "${{ needs.deploy-prod.result }}" == "success" ]]; then
             echo "Deploy PROD executado."
           else
             echo "Nenhum deploy foi realizado."

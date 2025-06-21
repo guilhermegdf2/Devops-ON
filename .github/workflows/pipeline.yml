@@ -165,16 +165,24 @@ jobs:
   gatekeeper-deploy:
     runs-on: ubuntu-latest
     needs: [deploy-dev, deploy-uat, deploy-prod]
+    if: always()  # <- executa mesmo que os deploys sejam pulados
     steps:
-      - name: Check if any deploy ran
+      - name: Verificar se algum deploy foi executado
         shell: bash
         run: |
-          echo "Branch: ${{ github.ref_name }}"
-          if [[ "${{ github.ref_name }}" == "develop" || "${{ github.ref_name }}" == "uat" || "${{ github.ref_name }}" == "main" ]]; then
-            echo "Algum deploy foi realizado com sucesso!"
+          echo "Branch atual: ${{ github.ref_name }}"
+
+          if [[ "${{ needs.deploy-dev.result }}" == "success" ]]; then
+            echo "Deploy DEV executado."
+          elif [[ "${{ needs.deploy-uat.result }}" == "success" ]]; then
+            echo "Deploy UAT executado."
+          elif [[ "${{ needs.deploy-prod-Azure.result }}" == "success" ]]; then
+            echo "Deploy PROD executado."
           else
-            echo "Nenhum deploy realizado – branch não corresponde."
+            echo "Nenhum deploy foi realizado."
+            exit 1
           fi
+
 
   Smoketest:
     runs-on: ubuntu-latest

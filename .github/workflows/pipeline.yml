@@ -85,6 +85,12 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk test || true --skip-maven-wrapper
 
+      - name: Snyk monitor
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk monitor
+
+
 
   build:
     runs-on: ubuntu-latest

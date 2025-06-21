@@ -62,25 +62,27 @@ jobs:
   dependency-check:
     runs-on: ubuntu-latest
     needs: unit-test
-
+  
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
-      - name: Set up Node.js (necessário para Snyk CLI)
+  
+      - name: Give execution permission to mvnw
+        run: chmod +x ./mvnw
+  
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-
+  
       - name: Install Snyk CLI
         run: npm install -g snyk
-
+  
       - name: Run Snyk Vulnerability Scan
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: snyk test --severity-threshold=high
-
 
   build:
     runs-on: ubuntu-latest

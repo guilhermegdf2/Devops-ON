@@ -183,6 +183,7 @@ jobs:
             echo "Nenhum deploy foi realizado."
             exit 1
           fi
+            exit 0
 
 
   Smoketest:

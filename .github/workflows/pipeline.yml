@@ -167,7 +167,7 @@ jobs:
              
   deploy-Prod-Azure:
     needs: build
-    name: Deploy-azure
+    name: deploy-Prod-Azure
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'    
     environment:

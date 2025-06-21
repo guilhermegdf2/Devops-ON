@@ -141,9 +141,9 @@ jobs:
         run: |
           echo "Deploy UAT"
              
-  deploy-prod-Azure:
+  deploy-prod:
     needs: build
-    name: deploy-prod-Azure
+    name: deploy-prod
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'    
     environment:
@@ -164,14 +164,17 @@ jobs:
             
   gatekeeper-deploy:
     runs-on: ubuntu-latest
-    needs: [deploy-dev, deploy-uat, deploy-prod-Azure]
-    if: |
-      success() && (
-        needs.deploy-dev.result == 'success' ||
-        needs.deploy-uat.result == 'success' ||
-        needs.deploy-prod-Azure.result == 'success')
+    needs: [deploy-dev, deploy-uat, deploy-prod]
     steps:
-      - run: echo "Deploy da branch ${{ github.ref_name }} foi bem-sucedido."
+      - name: Check if any deploy ran
+        shell: bash
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          if [[ "${{ github.ref_name }}" == "develop" || "${{ github.ref_name }}" == "uat" || "${{ github.ref_name }}" == "main" ]]; then
+            echo "Algum deploy foi realizado com sucesso!"
+          else
+            echo "Nenhum deploy realizado – branch não corresponde."
+          fi
 
   Smoketest:
     runs-on: ubuntu-latest

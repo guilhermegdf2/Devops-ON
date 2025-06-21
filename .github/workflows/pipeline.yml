@@ -83,7 +83,7 @@ jobs:
       - name: Run Snyk Vulnerability Scan
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: snyk test --severity-threshold=high --skip-maven-wrapper
+        run: snyk test --skip-maven-wrapper
 
 
   build:

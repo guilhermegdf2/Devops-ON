@@ -204,6 +204,7 @@ jobs:
 
   criar-change:
     runs-on: ubuntu-latest
+    needs: testeIntegradosUat
     if: ${{ github.event.inputs.criar_change == 'sim' }}
     steps:
     - name: Criar Change (simulada)
@@ -236,10 +237,26 @@ jobs:
           exit 1
         fi
 
+  validar-change:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.change_id != '' }} && github.ref == 'refs/heads/main' # Só roda se o input foi fornecido
+    steps:
+      - name: Validar número da change
+        run: |
+          echo "Change fornecida: ${{ github.event.inputs.change_id }}"
+          echo "Change criada: ${{ needs.criar-change.outputs.change_number }}"
+
+          if [ "${{ github.event.inputs.change_id }}" != "CHG123456" ]; then
+            echo "❌ Change ID fornecida não confere com a criada!"
+            exit 1
+          else
+            echo "✅ Change ID validada com sucesso."
+          fi
+
 
   deploy-prod:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, validar-change]
     
     if: github.ref == 'refs/heads/main'    
     environment:

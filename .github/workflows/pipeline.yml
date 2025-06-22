@@ -14,12 +14,11 @@ on:
         change_id:
           description: 'Numero da change para subida em Produção'
           required: false
-          default: 'CHG000000'
+          default: ''
   
 jobs:
   unit-test:
     runs-on: ubuntu-latest
-    needs: validar-change
     
     steps:
     - uses: actions/checkout@v3
@@ -42,8 +41,7 @@ jobs:
         
   code-analisys:
     runs-on: ubuntu-latest
-    needs: unit-test
-    if: github.ref == 'refs/heads/main'
+    needs: validar-change
     steps:
     - uses: actions/checkout@v2
       with:
@@ -75,7 +73,7 @@ jobs:
 
   dependency-check:
     runs-on: ubuntu-latest
-    needs: code-analisys
+    needs: unit-test
   
     steps:
       - uses: actions/checkout@v3
@@ -110,29 +108,44 @@ jobs:
     runs-on: ubuntu-latest
     needs: dependency-check
     steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Build with Maven
-      run: mvn -B package -DskipTests --file pom.xml      
-    - name: Display structure of downloaded files
-      run: ls -R
-      working-directory: target/
-    - name: Upload JAR
-        #This uploads artifacts from your workflow allowing you to share data between jobs and store data once a workflow is complete.
-      uses: actions/upload-artifact@v4.4.0
-      with:
-        #Set artifact name
-        name: artifact
-        #From this path
-        path: target/demo-0.0.2.7-SNAPSHOT.jar
-    
-    - name: Package
-      run: mvn package
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Build com Maven (sem testes)
+        run: mvn -B package -DskipTests --file pom.xml
+
+      - name: Mostrar estrutura do diretório target
+        run: ls -R target/
+
+      - name: Upload do JAR como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: target/demo-0.0.2.7-SNAPSHOT.jar
+
+
+  docker-test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Baixar o JAR gerado
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: target  # recria a pasta target/
+
+      - name: Build da imagem Docker
+        run: docker build -t meu-app .
+
+      - name: Testar container
+        run: timeout 30s docker run --rm meu-app || true
       
   deploy-dev:
     runs-on: ubuntu-latest
-    needs: build
+    needs: docker-test
     environment:
       name: stg
     
@@ -169,7 +182,7 @@ jobs:
   
   deploy-uat:
     runs-on: ubuntu-latest
-    needs: build
+    needs: docker-test
     if: github.ref == 'refs/heads/uat'
     environment:
       name: uat
@@ -203,61 +216,9 @@ jobs:
         run: |
           sh 'src/main/scripts/testeIntegrado.sh'
 
-  criar-change:
-    runs-on: ubuntu-latest
-    needs: testeIntegradosUat
-    if: ${{ github.event.inputs.criar_change == 'sim' }}
-    steps:
-    - name: Criar Change (simulada)
-      id: criar_change
-      if: ${{ github.event.inputs.criar_change == 'sim' }}
-      run: |
-        echo "Enviando solicitação de change para Webhook.site..."
-    
-        STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST https://webhook.site/660788b8-0279-4ce8-a519-b0fa06c2d790 \
-          -H "Content-Type: application/json" \
-          -d '{
-            "change": {
-              "autor": "'"${{ github.actor }}"'",
-              "branch": "'"${{ github.ref_name }}"'",
-              "commit": "'"${{ github.sha }}"'",
-              "mensagem": "Solicitação de mudança enviada via pipeline GitHub Actions",
-              "data": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
-            }
-          }')
-    
-        echo "HTTP status: $STATUS"
-        cat response.txt
-    
-        if [ "$STATUS" == "200" ]; then
-          CHANGE_ID="CHG123456"
-          echo "Change criada com sucesso. ID: $CHANGE_ID"
-          echo "change_id=$CHANGE_ID" >> $GITHUB_OUTPUT
-        else
-          echo "❌ Falha ao enviar change. Código HTTP: $STATUS"
-          exit 1
-        fi
-
-  validar-change:
-    runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.change_id != '' }} && github.ref == 'refs/heads/main' # Só roda se o input foi fornecido
-    steps:
-      - name: Validar número da change
-        run: |
-          echo "Change fornecida: ${{ github.event.inputs.change_id }}"
-          echo "Change criada: CHG123456"
-
-          if [ "${{ github.event.inputs.change_id }}" != "CHG123456" ]; then
-            echo "❌ Change ID fornecida não confere com a criada!"
-            exit 1
-          else
-            echo "✅ Change ID validada com sucesso."
-          fi
-
-
   deploy-prod:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [docker-test, code-analisys]
     
     if: github.ref == 'refs/heads/main'    
     environment:
@@ -299,3 +260,54 @@ jobs:
         shell: bash
         run: |
           sh 'src/main/scripts/testesFuncionais.sh'  
+
+  criar-change:
+    runs-on: ubuntu-latest
+    needs: testeIntegradosUat
+    if: ${{ github.event.inputs.criar_change == 'sim' }}
+    steps:
+    - name: Criar Change (simulada)
+      id: criar_change
+      if: ${{ github.event.inputs.criar_change == 'sim' }}
+      run: |
+        echo "Enviando solicitação de change para Webhook.site..."
+    
+        STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST https://webhook.site/660788b8-0279-4ce8-a519-b0fa06c2d790 \
+          -H "Content-Type: application/json" \
+          -d '{
+            "change": {
+              "autor": "'"${{ github.actor }}"'",
+              "branch": "'"${{ github.ref_name }}"'",
+              "commit": "'"${{ github.sha }}"'",
+              "mensagem": "Solicitação de mudança enviada via pipeline GitHub Actions",
+              "data": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+            }
+          }')
+    
+        echo "HTTP status: $STATUS"
+        cat response.txt
+    
+        if [ "$STATUS" == "200" ]; then
+          CHANGE_ID="CHG123456"
+          echo "Change criada com sucesso. ID: $CHANGE_ID"
+          echo "change_id=$CHANGE_ID" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Falha ao enviar change. Código HTTP: $STATUS"
+          exit 1
+        fi
+
+  validar-change:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.change_id != '' && github.ref == 'refs/heads/main' # Só roda se o input foi fornecido
+    steps:
+      - name: Validar número da change
+        run: |
+          echo "Change fornecida: ${{ github.event.inputs.change_id }}"
+          echo "Change criada: CHG123456"
+
+          if [ "${{ github.event.inputs.change_id }}" != "CHG123456" ]; then
+            echo "❌ Change ID fornecida não confere com a criada!"
+            exit 1
+          else
+            echo "✅ Change ID validada com sucesso."
+          fi

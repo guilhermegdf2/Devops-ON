@@ -11,7 +11,7 @@ on:
           options:
             - "sim"
             - "nao"
-        validar_change:
+        change_id:
           description: 'Numero da change para subida em Produção'
           required: false
           default: 'CHG000000'
@@ -245,7 +245,7 @@ jobs:
       - name: Validar número da change
         run: |
           echo "Change fornecida: ${{ github.event.inputs.change_id }}"
-          echo "Change criada: ${{ needs.criar-change.outputs.change_number }}"
+          echo "Change criada: CHG123456"
 
           if [ "${{ github.event.inputs.change_id }}" != "CHG123456" ]; then
             echo "❌ Change ID fornecida não confere com a criada!"

@@ -1,7 +1,20 @@
 name: pipeline
 
 on:
-  push:
+    workflow_dispatch:
+      inputs:
+        criar_change:
+          description: 'Deseja criar uma change? (sim/nao)'
+          required: false
+          default: "nao"
+          type: choice
+          options:
+            - "sim"
+            - "nao"
+        validar_change:
+          description: 'Numero da change para subida em Produção'
+          required: false
+          default: 'CHG000000'
   
 jobs:
   unit-test:
@@ -188,6 +201,41 @@ jobs:
         shell: bash
         run: |
           sh 'src/main/scripts/testeIntegrado.sh'
+
+  criar-change:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.criar_change == 'sim' }}
+    steps:
+    - name: Criar Change (simulada)
+      id: criar_change
+      if: ${{ github.event.inputs.criar_change == 'sim' }}
+      run: |
+        echo "Enviando solicitação de change para Webhook.site..."
+    
+        STATUS=$(curl -s -o response.txt -w "%{http_code}" -X POST https://webhook.site/660788b8-0279-4ce8-a519-b0fa06c2d790 \
+          -H "Content-Type: application/json" \
+          -d '{
+            "change": {
+              "autor": "'"${{ github.actor }}"'",
+              "branch": "'"${{ github.ref_name }}"'",
+              "commit": "'"${{ github.sha }}"'",
+              "mensagem": "Solicitação de mudança enviada via pipeline GitHub Actions",
+              "data": "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"
+            }
+          }')
+    
+        echo "HTTP status: $STATUS"
+        cat response.txt
+    
+        if [ "$STATUS" == "200" ]; then
+          CHANGE_ID="CHG123456"
+          echo "Change criada com sucesso. ID: $CHANGE_ID"
+          echo "change_id=$CHANGE_ID" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Falha ao enviar change. Código HTTP: $STATUS"
+          exit 1
+        fi
+
 
   deploy-prod:
     runs-on: ubuntu-latest

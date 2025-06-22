@@ -14,7 +14,7 @@ on:
         change_id:
           description: 'Numero da change para subida em Produção'
           required: false
-          default: 'CHG000000'
+          default: ''
   
 jobs:
   unit-test:

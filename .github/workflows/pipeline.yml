@@ -73,7 +73,7 @@ jobs:
 
   dependency-check:
     runs-on: ubuntu-latest
-    needs: code-analisys
+    needs: unit-test
   
     steps:
       - uses: actions/checkout@v3
